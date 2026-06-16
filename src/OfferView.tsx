@@ -1,10 +1,20 @@
 import type { Theme } from './theme'
-import type { PublicLine } from './types'
+import type { PublicLine, RespondInput, RespondResult, PayInitiateResult } from './types'
 import { formatOre } from './logic'
+import { AcceptPanel } from './AcceptPanel'
 
 interface OfferContent { currency?: string; introSections?: { heading: string; body: string }[] }
 
-export function OfferView({ content, lines, theme }: { content: OfferContent; lines: PublicLine[]; theme: Theme }) {
+export interface OfferViewProps {
+  content: OfferContent
+  lines: PublicLine[]
+  theme: Theme
+  available: ('stripe' | 'vipps' | 'fiken')[]
+  onPayInitiate?: (method: 'stripe' | 'vipps' | 'fiken', email: string) => Promise<PayInitiateResult>
+  onRespond: (input: RespondInput) => Promise<RespondResult>
+}
+
+export function OfferView({ content, lines, theme, available, onPayInitiate, onRespond }: OfferViewProps) {
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.unit_price_ore, 0)
   const vat = lines.reduce((s, l) => s + Math.round((l.quantity * l.unit_price_ore * l.vat_rate) / 100), 0)
   return (
@@ -31,6 +41,12 @@ export function OfferView({ content, lines, theme }: { content: OfferContent; li
         <div>MVA: {formatOre(vat)} kr</div>
         <div style={{ fontWeight: 600 }}>Totalt: {formatOre(subtotal + vat)} kr</div>
       </div>
+      <AcceptPanel
+        theme={theme}
+        available={available}
+        onPayInitiate={onPayInitiate}
+        onRespond={onRespond}
+      />
     </div>
   )
 }

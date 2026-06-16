@@ -26,9 +26,14 @@ export interface PublicPayload {
   artifact: PublicArtifact
   signing?: { available: ('bankid' | 'vipps')[] }
   signedDocumentUrl?: string
+  payment?: { available: ('stripe' | 'vipps' | 'fiken')[] }
+  paidAt?: string
+  paymentRef?: string
 }
 
 export interface SignInitiateResult { signingUrl?: string; error?: string }
+
+export interface PayInitiateResult { hostedUrl?: string; error?: string }
 
 export interface RespondInput {
   outcome: 'accepted' | 'declined'

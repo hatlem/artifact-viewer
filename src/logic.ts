@@ -39,3 +39,7 @@ export function validateSign(input: { signerName: string; signerEmail: string; c
 export function signingButtons(signing?: { available: ('bankid' | 'vipps')[] }): ('bankid' | 'vipps')[] {
   return signing?.available ?? []
 }
+
+export function paymentButtons(payment?: { available: ('stripe' | 'vipps' | 'fiken')[] }): ('stripe' | 'vipps' | 'fiken')[] {
+  return payment?.available ?? []
+}

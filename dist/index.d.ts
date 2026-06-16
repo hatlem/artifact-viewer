@@ -47,9 +47,18 @@ interface PublicPayload {
         available: ('bankid' | 'vipps')[];
     };
     signedDocumentUrl?: string;
+    payment?: {
+        available: ('stripe' | 'vipps' | 'fiken')[];
+    };
+    paidAt?: string;
+    paymentRef?: string;
 }
 interface SignInitiateResult {
     signingUrl?: string;
+    error?: string;
+}
+interface PayInitiateResult {
+    hostedUrl?: string;
     error?: string;
 }
 interface RespondInput {
@@ -67,15 +76,27 @@ interface RespondResult {
     error?: string;
 }
 
-declare function ArtifactViewer({ payload, theme, onRespond, onSignInitiate }: {
+declare function ArtifactViewer({ payload, theme, onRespond, onSignInitiate, onPayInitiate }: {
     payload: PublicPayload;
     theme?: Theme;
     onRespond: (input: RespondInput) => Promise<RespondResult>;
     onSignInitiate?: (provider: 'bankid' | 'vipps', signerEmail: string) => Promise<SignInitiateResult>;
+    onPayInitiate?: (method: 'stripe' | 'vipps' | 'fiken', email: string) => Promise<PayInitiateResult>;
 }): react.JSX.Element;
+
+interface AcceptPanelProps {
+    theme: Theme;
+    available: ('stripe' | 'vipps' | 'fiken')[];
+    onPayInitiate?: (method: 'stripe' | 'vipps' | 'fiken', email: string) => Promise<PayInitiateResult>;
+    onRespond: (input: RespondInput) => Promise<RespondResult>;
+}
+declare function AcceptPanel({ theme, available, onPayInitiate, onRespond }: AcceptPanelProps): react.JSX.Element;
 
 declare function signingButtons(signing?: {
     available: ('bankid' | 'vipps')[];
 }): ('bankid' | 'vipps')[];
+declare function paymentButtons(payment?: {
+    available: ('stripe' | 'vipps' | 'fiken')[];
+}): ('stripe' | 'vipps' | 'fiken')[];
 
-export { ArtifactViewer, type PublicArtifact, type PublicLine, type PublicPayload, type RespondInput, type RespondResult, type SignInitiateResult, type Theme, defaultTheme, signingButtons };
+export { AcceptPanel, type AcceptPanelProps, ArtifactViewer, type PayInitiateResult, type PublicArtifact, type PublicLine, type PublicPayload, type RespondInput, type RespondResult, type SignInitiateResult, type Theme, defaultTheme, paymentButtons, signingButtons };

@@ -43,6 +43,9 @@ function validateSign(input) {
 function signingButtons(signing) {
   return signing?.available ?? [];
 }
+function paymentButtons(payment) {
+  return payment?.available ?? [];
+}
 
 // src/SlideDeck.tsx
 import { useEffect, useState } from "react";
@@ -81,65 +84,200 @@ function SlideDeck({ slides, theme }) {
 }
 var navBtn = { padding: "6px 14px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer" };
 
+// src/AcceptPanel.tsx
+import { useState as useState2 } from "react";
+import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+var EMAIL2 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+var METHOD_LABELS = {
+  stripe: "Betal med kort",
+  vipps: "Betal med Vipps",
+  fiken: "Faktura (EHF)"
+};
+var METHOD_COLORS = {
+  stripe: "#635bff",
+  vipps: "#FF5B24",
+  fiken: "#1a5276"
+};
+function AcceptPanel({ theme, available, onPayInitiate, onRespond }) {
+  const [email, setEmail] = useState2("");
+  const [emailError, setEmailError] = useState2("");
+  const [busy, setBusy] = useState2(null);
+  const [error, setError] = useState2("");
+  const [done, setDone] = useState2(null);
+  const hasPayment = available.length > 0 && onPayInitiate != null;
+  function validateEmail() {
+    const trimmed = email.trim();
+    if (!trimmed || !EMAIL2.test(trimmed)) {
+      setEmailError("Oppgi en gyldig e-postadresse for \xE5 fortsette");
+      return false;
+    }
+    setEmailError("");
+    return true;
+  }
+  async function initiatePayment(method) {
+    if (!validateEmail()) return;
+    setError("");
+    setBusy(method);
+    const res = await onPayInitiate(method, email.trim());
+    setBusy(null);
+    if (res.hostedUrl) {
+      window.location.assign(res.hostedUrl);
+    } else if (res.error) {
+      setError(res.error);
+    } else {
+      setDone("invoiced");
+    }
+  }
+  async function acceptWithoutPayment() {
+    if (!validateEmail()) return;
+    setError("");
+    setBusy("accept");
+    const trimmed = email.trim();
+    const res = await onRespond({
+      outcome: "accepted",
+      signerName: trimmed,
+      signerEmail: trimmed,
+      consent: true
+    });
+    setBusy(null);
+    if (res.ok) {
+      setDone("accepted");
+    } else {
+      setError(res.error ?? "Noe gikk galt");
+    }
+  }
+  if (done === "paid" || done === "accepted") {
+    return /* @__PURE__ */ jsx2("div", { style: { marginTop: 24, padding: 16, borderRadius: 8, background: "#f0fdf4", color: "#166534" }, children: "\u2713 Takk!" });
+  }
+  if (done === "invoiced") {
+    return /* @__PURE__ */ jsx2("div", { style: { marginTop: 24, padding: 16, borderRadius: 8, background: "#eff6ff", color: "#1e40af" }, children: "\u2713 Faktura sendt \u2014 vi tar kontakt med betalingsinformasjon." });
+  }
+  return /* @__PURE__ */ jsxs2("div", { style: { marginTop: 24, padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }, children: [
+    /* @__PURE__ */ jsx2(
+      "input",
+      {
+        "aria-label": "E-postadresse",
+        placeholder: "Din e-postadresse",
+        type: "email",
+        value: email,
+        onChange: (e) => {
+          setEmail(e.target.value);
+          setEmailError("");
+        },
+        style: inp
+      }
+    ),
+    emailError && /* @__PURE__ */ jsx2("p", { style: { color: "#dc2626", fontSize: 14, margin: "4px 0 8px" }, children: emailError }),
+    hasPayment ? /* @__PURE__ */ jsxs2(Fragment, { children: [
+      /* @__PURE__ */ jsx2("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }, children: available.map((method) => /* @__PURE__ */ jsx2(
+        "button",
+        {
+          disabled: busy !== null,
+          onClick: () => initiatePayment(method),
+          style: {
+            ...btn,
+            background: METHOD_COLORS[method],
+            color: "#fff",
+            opacity: busy !== null ? 0.6 : 1
+          },
+          children: busy === method ? "..." : METHOD_LABELS[method]
+        },
+        method
+      )) }),
+      /* @__PURE__ */ jsx2("hr", { style: { margin: "16px 0", borderColor: "#e5e7eb" } }),
+      /* @__PURE__ */ jsx2("p", { style: { fontSize: 13, color: "#6b7280", marginBottom: 8 }, children: "Eller aksepter uten betaling n\xE5:" }),
+      /* @__PURE__ */ jsx2(
+        "button",
+        {
+          disabled: busy !== null,
+          onClick: acceptWithoutPayment,
+          style: { ...btn, background: theme.accentColor, color: "#fff", opacity: busy !== null ? 0.5 : 1 },
+          children: busy === "accept" ? "..." : "Aksepter tilbud"
+        }
+      )
+    ] }) : /* @__PURE__ */ jsx2(
+      "button",
+      {
+        disabled: busy !== null,
+        onClick: acceptWithoutPayment,
+        style: { ...btn, background: theme.accentColor, color: "#fff", marginTop: 8, opacity: busy !== null ? 0.5 : 1 },
+        children: busy === "accept" ? "..." : "Aksepter tilbud"
+      }
+    ),
+    error && /* @__PURE__ */ jsx2("p", { style: { color: "#dc2626", fontSize: 14, marginTop: 8 }, children: error })
+  ] });
+}
+var inp = { display: "block", width: "100%", padding: "8px 12px", margin: "6px 0", border: "1px solid #e5e7eb", borderRadius: 6 };
+var btn = { padding: "8px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 14 };
+
 // src/OfferView.tsx
-import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
-function OfferView({ content, lines, theme }) {
+import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+function OfferView({ content, lines, theme, available, onPayInitiate, onRespond }) {
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.unit_price_ore, 0);
   const vat = lines.reduce((s, l) => s + Math.round(l.quantity * l.unit_price_ore * l.vat_rate / 100), 0);
-  return /* @__PURE__ */ jsxs2("div", { style: { fontFamily: theme.fontFamily }, children: [
-    (content.introSections ?? []).map((sec, k) => /* @__PURE__ */ jsxs2("section", { style: { marginBottom: 16 }, children: [
-      /* @__PURE__ */ jsx2("h3", { style: { color: theme.brandColor }, children: sec.heading }),
-      /* @__PURE__ */ jsx2("p", { children: sec.body })
+  return /* @__PURE__ */ jsxs3("div", { style: { fontFamily: theme.fontFamily }, children: [
+    (content.introSections ?? []).map((sec, k) => /* @__PURE__ */ jsxs3("section", { style: { marginBottom: 16 }, children: [
+      /* @__PURE__ */ jsx3("h3", { style: { color: theme.brandColor }, children: sec.heading }),
+      /* @__PURE__ */ jsx3("p", { children: sec.body })
     ] }, k)),
-    /* @__PURE__ */ jsxs2("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 14 }, children: [
-      /* @__PURE__ */ jsx2("thead", { children: /* @__PURE__ */ jsxs2("tr", { style: { textAlign: "left", color: "#6b7280" }, children: [
-        /* @__PURE__ */ jsx2("th", { children: "Post" }),
-        /* @__PURE__ */ jsx2("th", { children: "Ant." }),
-        /* @__PURE__ */ jsx2("th", { style: { textAlign: "right" }, children: "Pris" })
+    /* @__PURE__ */ jsxs3("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 14 }, children: [
+      /* @__PURE__ */ jsx3("thead", { children: /* @__PURE__ */ jsxs3("tr", { style: { textAlign: "left", color: "#6b7280" }, children: [
+        /* @__PURE__ */ jsx3("th", { children: "Post" }),
+        /* @__PURE__ */ jsx3("th", { children: "Ant." }),
+        /* @__PURE__ */ jsx3("th", { style: { textAlign: "right" }, children: "Pris" })
       ] }) }),
-      /* @__PURE__ */ jsx2("tbody", { children: lines.map((l, k) => /* @__PURE__ */ jsxs2("tr", { style: { borderTop: "1px solid #e5e7eb" }, children: [
-        /* @__PURE__ */ jsx2("td", { style: { padding: "6px 0" }, children: l.name }),
-        /* @__PURE__ */ jsx2("td", { children: l.quantity }),
-        /* @__PURE__ */ jsxs2("td", { style: { textAlign: "right" }, children: [
+      /* @__PURE__ */ jsx3("tbody", { children: lines.map((l, k) => /* @__PURE__ */ jsxs3("tr", { style: { borderTop: "1px solid #e5e7eb" }, children: [
+        /* @__PURE__ */ jsx3("td", { style: { padding: "6px 0" }, children: l.name }),
+        /* @__PURE__ */ jsx3("td", { children: l.quantity }),
+        /* @__PURE__ */ jsxs3("td", { style: { textAlign: "right" }, children: [
           formatOre(l.quantity * l.unit_price_ore),
           " kr"
         ] })
       ] }, k)) })
     ] }),
-    /* @__PURE__ */ jsxs2("div", { style: { textAlign: "right", marginTop: 12 }, children: [
-      /* @__PURE__ */ jsxs2("div", { children: [
+    /* @__PURE__ */ jsxs3("div", { style: { textAlign: "right", marginTop: 12 }, children: [
+      /* @__PURE__ */ jsxs3("div", { children: [
         "Sum: ",
         formatOre(subtotal),
         " kr"
       ] }),
-      /* @__PURE__ */ jsxs2("div", { children: [
+      /* @__PURE__ */ jsxs3("div", { children: [
         "MVA: ",
         formatOre(vat),
         " kr"
       ] }),
-      /* @__PURE__ */ jsxs2("div", { style: { fontWeight: 600 }, children: [
+      /* @__PURE__ */ jsxs3("div", { style: { fontWeight: 600 }, children: [
         "Totalt: ",
         formatOre(subtotal + vat),
         " kr"
       ] })
-    ] })
+    ] }),
+    /* @__PURE__ */ jsx3(
+      AcceptPanel,
+      {
+        theme,
+        available,
+        onPayInitiate,
+        onRespond
+      }
+    )
   ] });
 }
 
 // src/SignPanel.tsx
-import { useState as useState2 } from "react";
-import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+import { useState as useState3 } from "react";
+import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 function SignPanel({ theme, onRespond, available, onSignInitiate }) {
-  const [name, setName] = useState2("");
-  const [email, setEmail] = useState2("");
-  const [title, setTitle] = useState2("");
-  const [consent, setConsent] = useState2(false);
-  const [busy, setBusy] = useState2(false);
-  const [done, setDone] = useState2(null);
-  const [error, setError] = useState2("");
-  const [providerEmail, setProviderEmail] = useState2("");
-  const [providerError, setProviderError] = useState2("");
-  const [providerBusy, setProviderBusy] = useState2(null);
+  const [name, setName] = useState3("");
+  const [email, setEmail] = useState3("");
+  const [title, setTitle] = useState3("");
+  const [consent, setConsent] = useState3(false);
+  const [busy, setBusy] = useState3(false);
+  const [done, setDone] = useState3(null);
+  const [error, setError] = useState3("");
+  const [providerEmail, setProviderEmail] = useState3("");
+  const [providerError, setProviderError] = useState3("");
+  const [providerBusy, setProviderBusy] = useState3(null);
   const v = validateSign({ signerName: name, signerEmail: email, consent });
   const useFormal = !!(available && available.length > 0 && onSignInitiate);
   async function submit(outcome) {
@@ -167,33 +305,33 @@ function SignPanel({ theme, onRespond, available, onSignInitiate }) {
     }
   }
   if (done) {
-    return /* @__PURE__ */ jsxs3("div", { style: { marginTop: 24, padding: 16, borderRadius: 8, background: "#f0fdf4", color: "#166534" }, children: [
+    return /* @__PURE__ */ jsxs4("div", { style: { marginTop: 24, padding: 16, borderRadius: 8, background: "#f0fdf4", color: "#166534" }, children: [
       "\u2713 ",
       theme.strings.signed,
       " \u2014 ",
       done.signedAt ? new Date(done.signedAt).toLocaleString("nb-NO") : ""
     ] });
   }
-  return /* @__PURE__ */ jsxs3("div", { style: { marginTop: 24, padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }, children: [
-    useFormal && /* @__PURE__ */ jsxs3("div", { style: { marginBottom: 20 }, children: [
-      /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsxs4("div", { style: { marginTop: 24, padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }, children: [
+    useFormal && /* @__PURE__ */ jsxs4("div", { style: { marginBottom: 20 }, children: [
+      /* @__PURE__ */ jsx4(
         "input",
         {
           "aria-label": theme.strings.signerEmail,
           placeholder: theme.strings.signerEmail,
           value: providerEmail,
           onChange: (e) => setProviderEmail(e.target.value),
-          style: inp
+          style: inp2
         }
       ),
-      providerError && /* @__PURE__ */ jsx3("p", { style: { color: "#dc2626", fontSize: 14, margin: "4px 0 8px" }, children: providerError }),
-      /* @__PURE__ */ jsx3("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: available.map((provider) => /* @__PURE__ */ jsx3(
+      providerError && /* @__PURE__ */ jsx4("p", { style: { color: "#dc2626", fontSize: 14, margin: "4px 0 8px" }, children: providerError }),
+      /* @__PURE__ */ jsx4("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: available.map((provider) => /* @__PURE__ */ jsx4(
         "button",
         {
           disabled: providerBusy !== null,
           onClick: () => initiateProvider(provider),
           style: {
-            ...btn,
+            ...btn2,
             background: provider === "bankid" ? "#002776" : "#FF5B24",
             color: "#fff",
             opacity: providerBusy !== null ? 0.6 : 1
@@ -202,28 +340,28 @@ function SignPanel({ theme, onRespond, available, onSignInitiate }) {
         },
         provider
       )) }),
-      /* @__PURE__ */ jsx3("hr", { style: { margin: "16px 0", borderColor: "#e5e7eb" } }),
-      /* @__PURE__ */ jsx3("p", { style: { fontSize: 13, color: "#6b7280", marginBottom: 8 }, children: "Eller signer med navn og e-post:" })
+      /* @__PURE__ */ jsx4("hr", { style: { margin: "16px 0", borderColor: "#e5e7eb" } }),
+      /* @__PURE__ */ jsx4("p", { style: { fontSize: 13, color: "#6b7280", marginBottom: 8 }, children: "Eller signer med navn og e-post:" })
     ] }),
-    /* @__PURE__ */ jsx3("input", { "aria-label": theme.strings.signerName, placeholder: theme.strings.signerName, value: name, onChange: (e) => setName(e.target.value), style: inp }),
-    /* @__PURE__ */ jsx3("input", { "aria-label": theme.strings.signerEmail, placeholder: theme.strings.signerEmail, value: email, onChange: (e) => setEmail(e.target.value), style: inp }),
-    /* @__PURE__ */ jsx3("input", { "aria-label": theme.strings.signerTitle, placeholder: theme.strings.signerTitle, value: title, onChange: (e) => setTitle(e.target.value), style: inp }),
-    /* @__PURE__ */ jsxs3("label", { style: { display: "flex", gap: 8, alignItems: "center", margin: "8px 0" }, children: [
-      /* @__PURE__ */ jsx3("input", { type: "checkbox", checked: consent, onChange: (e) => setConsent(e.target.checked) }),
+    /* @__PURE__ */ jsx4("input", { "aria-label": theme.strings.signerName, placeholder: theme.strings.signerName, value: name, onChange: (e) => setName(e.target.value), style: inp2 }),
+    /* @__PURE__ */ jsx4("input", { "aria-label": theme.strings.signerEmail, placeholder: theme.strings.signerEmail, value: email, onChange: (e) => setEmail(e.target.value), style: inp2 }),
+    /* @__PURE__ */ jsx4("input", { "aria-label": theme.strings.signerTitle, placeholder: theme.strings.signerTitle, value: title, onChange: (e) => setTitle(e.target.value), style: inp2 }),
+    /* @__PURE__ */ jsxs4("label", { style: { display: "flex", gap: 8, alignItems: "center", margin: "8px 0" }, children: [
+      /* @__PURE__ */ jsx4("input", { type: "checkbox", checked: consent, onChange: (e) => setConsent(e.target.checked) }),
       theme.strings.consent
     ] }),
-    error && /* @__PURE__ */ jsx3("p", { style: { color: "#dc2626", fontSize: 14 }, children: error }),
-    /* @__PURE__ */ jsxs3("div", { style: { display: "flex", gap: 8 }, children: [
-      /* @__PURE__ */ jsx3("button", { disabled: !v.ok || busy, onClick: () => submit("accepted"), style: { ...btn, background: theme.accentColor, color: "#fff", opacity: !v.ok || busy ? 0.5 : 1 }, children: theme.strings.accept }),
-      /* @__PURE__ */ jsx3("button", { disabled: busy, onClick: () => submit("declined"), style: { ...btn, background: "#fff", color: theme.brandColor, border: "1px solid #e5e7eb" }, children: theme.strings.decline })
+    error && /* @__PURE__ */ jsx4("p", { style: { color: "#dc2626", fontSize: 14 }, children: error }),
+    /* @__PURE__ */ jsxs4("div", { style: { display: "flex", gap: 8 }, children: [
+      /* @__PURE__ */ jsx4("button", { disabled: !v.ok || busy, onClick: () => submit("accepted"), style: { ...btn2, background: theme.accentColor, color: "#fff", opacity: !v.ok || busy ? 0.5 : 1 }, children: theme.strings.accept }),
+      /* @__PURE__ */ jsx4("button", { disabled: busy, onClick: () => submit("declined"), style: { ...btn2, background: "#fff", color: theme.brandColor, border: "1px solid #e5e7eb" }, children: theme.strings.decline })
     ] })
   ] });
 }
-var inp = { display: "block", width: "100%", padding: "8px 12px", margin: "6px 0", border: "1px solid #e5e7eb", borderRadius: 6 };
-var btn = { padding: "8px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 14 };
+var inp2 = { display: "block", width: "100%", padding: "8px 12px", margin: "6px 0", border: "1px solid #e5e7eb", borderRadius: 6 };
+var btn2 = { padding: "8px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 14 };
 
 // src/AgreementView.tsx
-import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
+import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 function AgreementView({
   content,
   theme,
@@ -231,41 +369,67 @@ function AgreementView({
   available,
   onSignInitiate
 }) {
-  return /* @__PURE__ */ jsxs4("div", { style: { fontFamily: theme.fontFamily }, children: [
-    /* @__PURE__ */ jsx4("pre", { style: { whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 15, lineHeight: 1.6 }, children: content.bodyMarkdown ?? "" }),
-    /* @__PURE__ */ jsx4(SignPanel, { theme, onRespond, available, onSignInitiate })
+  return /* @__PURE__ */ jsxs5("div", { style: { fontFamily: theme.fontFamily }, children: [
+    /* @__PURE__ */ jsx5("pre", { style: { whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 15, lineHeight: 1.6 }, children: content.bodyMarkdown ?? "" }),
+    /* @__PURE__ */ jsx5(SignPanel, { theme, onRespond, available, onSignInitiate })
   ] });
 }
 
 // src/ArtifactViewer.tsx
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSignInitiate }) {
+import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
+function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSignInitiate, onPayInitiate }) {
   const surface = selectSurface(payload);
   const a = payload.artifact;
-  const wrap = (children) => /* @__PURE__ */ jsxs5("div", { style: { maxWidth: 880, margin: "0 auto", padding: 24, fontFamily: theme.fontFamily, color: theme.brandColor }, children: [
-    theme.logoUrl && /* @__PURE__ */ jsx5("img", { src: theme.logoUrl, alt: "", style: { height: 28, marginBottom: 24 } }),
-    /* @__PURE__ */ jsx5("h1", { style: { fontSize: 24, marginBottom: 16 }, children: a.title }),
+  const wrap = (children) => /* @__PURE__ */ jsxs6("div", { style: { maxWidth: 880, margin: "0 auto", padding: 24, fontFamily: theme.fontFamily, color: theme.brandColor }, children: [
+    theme.logoUrl && /* @__PURE__ */ jsx6("img", { src: theme.logoUrl, alt: "", style: { height: 28, marginBottom: 24 } }),
+    /* @__PURE__ */ jsx6("h1", { style: { fontSize: 24, marginBottom: 16 }, children: a.title }),
     children
   ] });
-  if (surface === "unavailable") return wrap(/* @__PURE__ */ jsx5("p", { style: { color: "#6b7280" }, children: theme.strings.unavailable }));
-  if (surface === "expired") return wrap(/* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("p", { style: { color: "#b45309" }, children: theme.strings.expired }) }));
+  if (surface === "unavailable") return wrap(/* @__PURE__ */ jsx6("p", { style: { color: "#6b7280" }, children: theme.strings.unavailable }));
+  if (surface === "expired") return wrap(/* @__PURE__ */ jsx6("div", { children: /* @__PURE__ */ jsx6("p", { style: { color: "#b45309" }, children: theme.strings.expired }) }));
   if (surface === "signed") return wrap(
-    /* @__PURE__ */ jsxs5("div", { children: [
-      /* @__PURE__ */ jsxs5("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
+    /* @__PURE__ */ jsxs6("div", { children: [
+      /* @__PURE__ */ jsxs6("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
         "\u2713 ",
         theme.strings.signed,
         payload.signedAt ? ` \u2014 ${new Date(payload.signedAt).toLocaleString("nb-NO")}` : ""
       ] }),
-      payload.signedDocumentUrl && /* @__PURE__ */ jsx5("p", { style: { marginTop: 12 }, children: /* @__PURE__ */ jsx5("a", { href: payload.signedDocumentUrl, style: { color: theme.accentColor }, children: "Last ned signert avtale (PDF)" }) })
+      payload.signedDocumentUrl && /* @__PURE__ */ jsx6("p", { style: { marginTop: 12 }, children: /* @__PURE__ */ jsx6("a", { href: payload.signedDocumentUrl, style: { color: theme.accentColor }, children: "Last ned signert avtale (PDF)" }) })
     ] })
   );
   if (surface === "presentation") {
     const slides = a.content?.slides ?? [];
-    return wrap(/* @__PURE__ */ jsx5(SlideDeck, { slides, theme }));
+    return wrap(/* @__PURE__ */ jsx6(SlideDeck, { slides, theme }));
   }
-  if (surface === "offer") return wrap(/* @__PURE__ */ jsx5(OfferView, { content: a.content ?? {}, lines: a.lines ?? [], theme }));
+  if (surface === "offer") {
+    if (payload.paidAt) {
+      return wrap(
+        /* @__PURE__ */ jsxs6("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
+          "\u2713 Betalt",
+          payload.paidAt ? ` \u2014 ${new Date(payload.paidAt).toLocaleString("nb-NO")}` : "",
+          payload.paymentRef && /* @__PURE__ */ jsxs6("span", { style: { marginLeft: 8, fontSize: 13, color: "#166534" }, children: [
+            "Ref: ",
+            payload.paymentRef
+          ] })
+        ] })
+      );
+    }
+    return wrap(
+      /* @__PURE__ */ jsx6(
+        OfferView,
+        {
+          content: a.content ?? {},
+          lines: a.lines ?? [],
+          theme,
+          available: payload.payment?.available ?? [],
+          onPayInitiate,
+          onRespond
+        }
+      )
+    );
+  }
   return wrap(
-    /* @__PURE__ */ jsx5(
+    /* @__PURE__ */ jsx6(
       AgreementView,
       {
         content: a.content ?? {},
@@ -278,7 +442,9 @@ function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSignInitia
   );
 }
 export {
+  AcceptPanel,
   ArtifactViewer,
   defaultTheme,
+  paymentButtons,
   signingButtons
 };

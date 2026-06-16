@@ -40,6 +40,9 @@ function validateSign(input) {
   if (!input.consent) return { ok: false, reason: "consent" };
   return { ok: true };
 }
+function signingButtons(signing) {
+  return signing?.available ?? [];
+}
 
 // src/SlideDeck.tsx
 import { useEffect, useState } from "react";
@@ -126,7 +129,7 @@ function OfferView({ content, lines, theme }) {
 // src/SignPanel.tsx
 import { useState as useState2 } from "react";
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
-function SignPanel({ theme, onRespond }) {
+function SignPanel({ theme, onRespond, available, onSignInitiate }) {
   const [name, setName] = useState2("");
   const [email, setEmail] = useState2("");
   const [title, setTitle] = useState2("");
@@ -134,7 +137,11 @@ function SignPanel({ theme, onRespond }) {
   const [busy, setBusy] = useState2(false);
   const [done, setDone] = useState2(null);
   const [error, setError] = useState2("");
+  const [providerEmail, setProviderEmail] = useState2("");
+  const [providerError, setProviderError] = useState2("");
+  const [providerBusy, setProviderBusy] = useState2(null);
   const v = validateSign({ signerName: name, signerEmail: email, consent });
+  const useFormal = !!(available && available.length > 0 && onSignInitiate);
   async function submit(outcome) {
     setError("");
     setBusy(true);
@@ -142,6 +149,22 @@ function SignPanel({ theme, onRespond }) {
     setBusy(false);
     if (res.ok) setDone(res);
     else setError(res.error ?? "Noe gikk galt");
+  }
+  async function initiateProvider(provider) {
+    setProviderError("");
+    const trimmed = providerEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setProviderError("Oppgi en gyldig e-postadresse for \xE5 fortsette");
+      return;
+    }
+    setProviderBusy(provider);
+    const res = await onSignInitiate(provider, trimmed);
+    setProviderBusy(null);
+    if (res.signingUrl) {
+      window.location.assign(res.signingUrl);
+    } else {
+      setProviderError(res.error ?? "Noe gikk galt");
+    }
   }
   if (done) {
     return /* @__PURE__ */ jsxs3("div", { style: { marginTop: 24, padding: 16, borderRadius: 8, background: "#f0fdf4", color: "#166534" }, children: [
@@ -152,6 +175,36 @@ function SignPanel({ theme, onRespond }) {
     ] });
   }
   return /* @__PURE__ */ jsxs3("div", { style: { marginTop: 24, padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }, children: [
+    useFormal && /* @__PURE__ */ jsxs3("div", { style: { marginBottom: 20 }, children: [
+      /* @__PURE__ */ jsx3(
+        "input",
+        {
+          "aria-label": theme.strings.signerEmail,
+          placeholder: theme.strings.signerEmail,
+          value: providerEmail,
+          onChange: (e) => setProviderEmail(e.target.value),
+          style: inp
+        }
+      ),
+      providerError && /* @__PURE__ */ jsx3("p", { style: { color: "#dc2626", fontSize: 14, margin: "4px 0 8px" }, children: providerError }),
+      /* @__PURE__ */ jsx3("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: available.map((provider) => /* @__PURE__ */ jsx3(
+        "button",
+        {
+          disabled: providerBusy !== null,
+          onClick: () => initiateProvider(provider),
+          style: {
+            ...btn,
+            background: provider === "bankid" ? "#002776" : "#FF5B24",
+            color: "#fff",
+            opacity: providerBusy !== null ? 0.6 : 1
+          },
+          children: providerBusy === provider ? "..." : provider === "bankid" ? "Signer med BankID" : "Signer med Vipps"
+        },
+        provider
+      )) }),
+      /* @__PURE__ */ jsx3("hr", { style: { margin: "16px 0", borderColor: "#e5e7eb" } }),
+      /* @__PURE__ */ jsx3("p", { style: { fontSize: 13, color: "#6b7280", marginBottom: 8 }, children: "Eller signer med navn og e-post:" })
+    ] }),
     /* @__PURE__ */ jsx3("input", { "aria-label": theme.strings.signerName, placeholder: theme.strings.signerName, value: name, onChange: (e) => setName(e.target.value), style: inp }),
     /* @__PURE__ */ jsx3("input", { "aria-label": theme.strings.signerEmail, placeholder: theme.strings.signerEmail, value: email, onChange: (e) => setEmail(e.target.value), style: inp }),
     /* @__PURE__ */ jsx3("input", { "aria-label": theme.strings.signerTitle, placeholder: theme.strings.signerTitle, value: title, onChange: (e) => setTitle(e.target.value), style: inp }),
@@ -171,16 +224,22 @@ var btn = { padding: "8px 16px", borderRadius: 6, border: "none", cursor: "point
 
 // src/AgreementView.tsx
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
-function AgreementView({ content, theme, onRespond }) {
+function AgreementView({
+  content,
+  theme,
+  onRespond,
+  available,
+  onSignInitiate
+}) {
   return /* @__PURE__ */ jsxs4("div", { style: { fontFamily: theme.fontFamily }, children: [
     /* @__PURE__ */ jsx4("pre", { style: { whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 15, lineHeight: 1.6 }, children: content.bodyMarkdown ?? "" }),
-    /* @__PURE__ */ jsx4(SignPanel, { theme, onRespond })
+    /* @__PURE__ */ jsx4(SignPanel, { theme, onRespond, available, onSignInitiate })
   ] });
 }
 
 // src/ArtifactViewer.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-function ArtifactViewer({ payload, theme = defaultTheme, onRespond }) {
+function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSignInitiate }) {
   const surface = selectSurface(payload);
   const a = payload.artifact;
   const wrap = (children) => /* @__PURE__ */ jsxs5("div", { style: { maxWidth: 880, margin: "0 auto", padding: 24, fontFamily: theme.fontFamily, color: theme.brandColor }, children: [
@@ -190,19 +249,36 @@ function ArtifactViewer({ payload, theme = defaultTheme, onRespond }) {
   ] });
   if (surface === "unavailable") return wrap(/* @__PURE__ */ jsx5("p", { style: { color: "#6b7280" }, children: theme.strings.unavailable }));
   if (surface === "expired") return wrap(/* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("p", { style: { color: "#b45309" }, children: theme.strings.expired }) }));
-  if (surface === "signed") return wrap(/* @__PURE__ */ jsxs5("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
-    "\u2713 ",
-    theme.strings.signed,
-    payload.signedAt ? ` \u2014 ${new Date(payload.signedAt).toLocaleString("nb-NO")}` : ""
-  ] }));
+  if (surface === "signed") return wrap(
+    /* @__PURE__ */ jsxs5("div", { children: [
+      /* @__PURE__ */ jsxs5("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
+        "\u2713 ",
+        theme.strings.signed,
+        payload.signedAt ? ` \u2014 ${new Date(payload.signedAt).toLocaleString("nb-NO")}` : ""
+      ] }),
+      payload.signedDocumentUrl && /* @__PURE__ */ jsx5("p", { style: { marginTop: 12 }, children: /* @__PURE__ */ jsx5("a", { href: payload.signedDocumentUrl, style: { color: theme.accentColor }, children: "Last ned signert avtale (PDF)" }) })
+    ] })
+  );
   if (surface === "presentation") {
     const slides = a.content?.slides ?? [];
     return wrap(/* @__PURE__ */ jsx5(SlideDeck, { slides, theme }));
   }
   if (surface === "offer") return wrap(/* @__PURE__ */ jsx5(OfferView, { content: a.content ?? {}, lines: a.lines ?? [], theme }));
-  return wrap(/* @__PURE__ */ jsx5(AgreementView, { content: a.content ?? {}, theme, onRespond }));
+  return wrap(
+    /* @__PURE__ */ jsx5(
+      AgreementView,
+      {
+        content: a.content ?? {},
+        theme,
+        onRespond,
+        available: payload.signing?.available ?? [],
+        onSignInitiate
+      }
+    )
+  );
 }
 export {
   ArtifactViewer,
-  defaultTheme
+  defaultTheme,
+  signingButtons
 };

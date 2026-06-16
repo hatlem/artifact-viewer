@@ -35,3 +35,7 @@ export function validateSign(input: { signerName: string; signerEmail: string; c
   if (!input.consent) return { ok: false, reason: 'consent' }
   return { ok: true }
 }
+
+export function signingButtons(signing?: { available: ('bankid' | 'vipps')[] }): ('bankid' | 'vipps')[] {
+  return signing?.available ?? []
+}

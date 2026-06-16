@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Theme } from './theme'
-import type { RespondInput, RespondResult } from './types'
+import type { RespondInput, RespondResult, SignInitiateResult } from './types'
 import { validateSign } from './logic'
 
-export function SignPanel({ theme, onRespond }: { theme: Theme; onRespond: (input: RespondInput) => Promise<RespondResult> }) {
+export interface SignPanelProps {
+  theme: Theme
+  onRespond: (input: RespondInput) => Promise<RespondResult>
+  available?: ('bankid' | 'vipps')[]
+  onSignInitiate?: (provider: 'bankid' | 'vipps', signerEmail: string) => Promise<SignInitiateResult>
+}
+
+export function SignPanel({ theme, onRespond, available, onSignInitiate }: SignPanelProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [title, setTitle] = useState('')
@@ -13,7 +20,14 @@ export function SignPanel({ theme, onRespond }: { theme: Theme; onRespond: (inpu
   const [done, setDone] = useState<RespondResult | null>(null)
   const [error, setError] = useState('')
 
+  // Provider-aware state
+  const [providerEmail, setProviderEmail] = useState('')
+  const [providerError, setProviderError] = useState('')
+  const [providerBusy, setProviderBusy] = useState<'bankid' | 'vipps' | null>(null)
+
   const v = validateSign({ signerName: name, signerEmail: email, consent })
+
+  const useFormal = !!(available && available.length > 0 && onSignInitiate)
 
   async function submit(outcome: 'accepted' | 'declined') {
     setError(''); setBusy(true)
@@ -21,6 +35,23 @@ export function SignPanel({ theme, onRespond }: { theme: Theme; onRespond: (inpu
     setBusy(false)
     if (res.ok) setDone(res)
     else setError(res.error ?? 'Noe gikk galt')
+  }
+
+  async function initiateProvider(provider: 'bankid' | 'vipps') {
+    setProviderError('')
+    const trimmed = providerEmail.trim()
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setProviderError('Oppgi en gyldig e-postadresse for å fortsette')
+      return
+    }
+    setProviderBusy(provider)
+    const res = await onSignInitiate!(provider, trimmed)
+    setProviderBusy(null)
+    if (res.signingUrl) {
+      window.location.assign(res.signingUrl)
+    } else {
+      setProviderError(res.error ?? 'Noe gikk galt')
+    }
   }
 
   if (done) {
@@ -31,6 +62,37 @@ export function SignPanel({ theme, onRespond }: { theme: Theme; onRespond: (inpu
 
   return (
     <div style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+      {useFormal && (
+        <div style={{ marginBottom: 20 }}>
+          <input
+            aria-label={theme.strings.signerEmail}
+            placeholder={theme.strings.signerEmail}
+            value={providerEmail}
+            onChange={(e) => setProviderEmail(e.target.value)}
+            style={inp}
+          />
+          {providerError && <p style={{ color: '#dc2626', fontSize: 14, margin: '4px 0 8px' }}>{providerError}</p>}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {available!.map((provider) => (
+              <button
+                key={provider}
+                disabled={providerBusy !== null}
+                onClick={() => initiateProvider(provider)}
+                style={{
+                  ...btn,
+                  background: provider === 'bankid' ? '#002776' : '#FF5B24',
+                  color: '#fff',
+                  opacity: providerBusy !== null ? 0.6 : 1,
+                }}
+              >
+                {providerBusy === provider ? '...' : provider === 'bankid' ? 'Signer med BankID' : 'Signer med Vipps'}
+              </button>
+            ))}
+          </div>
+          <hr style={{ margin: '16px 0', borderColor: '#e5e7eb' }} />
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>Eller signer med navn og e-post:</p>
+        </div>
+      )}
       <input aria-label={theme.strings.signerName} placeholder={theme.strings.signerName} value={name} onChange={(e) => setName(e.target.value)} style={inp} />
       <input aria-label={theme.strings.signerEmail} placeholder={theme.strings.signerEmail} value={email} onChange={(e) => setEmail(e.target.value)} style={inp} />
       <input aria-label={theme.strings.signerTitle} placeholder={theme.strings.signerTitle} value={title} onChange={(e) => setTitle(e.target.value)} style={inp} />

@@ -43,6 +43,14 @@ interface PublicPayload {
     signed?: boolean;
     signedAt?: string;
     artifact: PublicArtifact;
+    signing?: {
+        available: ('bankid' | 'vipps')[];
+    };
+    signedDocumentUrl?: string;
+}
+interface SignInitiateResult {
+    signingUrl?: string;
+    error?: string;
 }
 interface RespondInput {
     outcome: 'accepted' | 'declined';
@@ -59,10 +67,15 @@ interface RespondResult {
     error?: string;
 }
 
-declare function ArtifactViewer({ payload, theme, onRespond }: {
+declare function ArtifactViewer({ payload, theme, onRespond, onSignInitiate }: {
     payload: PublicPayload;
     theme?: Theme;
     onRespond: (input: RespondInput) => Promise<RespondResult>;
+    onSignInitiate?: (provider: 'bankid' | 'vipps', signerEmail: string) => Promise<SignInitiateResult>;
 }): react.JSX.Element;
 
-export { ArtifactViewer, type PublicArtifact, type PublicLine, type PublicPayload, type RespondInput, type RespondResult, type Theme, defaultTheme };
+declare function signingButtons(signing?: {
+    available: ('bankid' | 'vipps')[];
+}): ('bankid' | 'vipps')[];
+
+export { ArtifactViewer, type PublicArtifact, type PublicLine, type PublicPayload, type RespondInput, type RespondResult, type SignInitiateResult, type Theme, defaultTheme, signingButtons };

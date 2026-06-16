@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatOre, clampSlide, selectSurface, validateSign } from './logic'
+import { formatOre, clampSlide, selectSurface, validateSign, signingButtons } from './logic'
 
 test('formatOre renders øre as NOK kroner', () => {
   assert.equal(formatOre(1250000), '12 500')
@@ -26,4 +26,10 @@ test('validateSign requires name, email, consent', () => {
   assert.equal(validateSign({ signerName: '', signerEmail: 'k@a.no', consent: true }).ok, false)
   assert.equal(validateSign({ signerName: 'Kari', signerEmail: 'bad', consent: true }).ok, false)
   assert.equal(validateSign({ signerName: 'Kari', signerEmail: 'k@a.no', consent: false }).ok, false)
+})
+
+test('signingButtons reflects availability', () => {
+  assert.deepEqual(signingButtons({ available: ['bankid', 'vipps'] }), ['bankid', 'vipps'])
+  assert.deepEqual(signingButtons({ available: [] }), [])
+  assert.deepEqual(signingButtons(undefined), [])
 })

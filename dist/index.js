@@ -21,7 +21,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   ArtifactViewer: () => ArtifactViewer,
-  defaultTheme: () => defaultTheme
+  defaultTheme: () => defaultTheme,
+  signingButtons: () => signingButtons
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -66,6 +67,9 @@ function validateSign(input) {
   if (!EMAIL.test(input.signerEmail)) return { ok: false, reason: "email" };
   if (!input.consent) return { ok: false, reason: "consent" };
   return { ok: true };
+}
+function signingButtons(signing) {
+  return signing?.available ?? [];
 }
 
 // src/SlideDeck.tsx
@@ -153,7 +157,7 @@ function OfferView({ content, lines, theme }) {
 // src/SignPanel.tsx
 var import_react2 = require("react");
 var import_jsx_runtime3 = require("react/jsx-runtime");
-function SignPanel({ theme, onRespond }) {
+function SignPanel({ theme, onRespond, available, onSignInitiate }) {
   const [name, setName] = (0, import_react2.useState)("");
   const [email, setEmail] = (0, import_react2.useState)("");
   const [title, setTitle] = (0, import_react2.useState)("");
@@ -161,7 +165,11 @@ function SignPanel({ theme, onRespond }) {
   const [busy, setBusy] = (0, import_react2.useState)(false);
   const [done, setDone] = (0, import_react2.useState)(null);
   const [error, setError] = (0, import_react2.useState)("");
+  const [providerEmail, setProviderEmail] = (0, import_react2.useState)("");
+  const [providerError, setProviderError] = (0, import_react2.useState)("");
+  const [providerBusy, setProviderBusy] = (0, import_react2.useState)(null);
   const v = validateSign({ signerName: name, signerEmail: email, consent });
+  const useFormal = !!(available && available.length > 0 && onSignInitiate);
   async function submit(outcome) {
     setError("");
     setBusy(true);
@@ -169,6 +177,22 @@ function SignPanel({ theme, onRespond }) {
     setBusy(false);
     if (res.ok) setDone(res);
     else setError(res.error ?? "Noe gikk galt");
+  }
+  async function initiateProvider(provider) {
+    setProviderError("");
+    const trimmed = providerEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setProviderError("Oppgi en gyldig e-postadresse for \xE5 fortsette");
+      return;
+    }
+    setProviderBusy(provider);
+    const res = await onSignInitiate(provider, trimmed);
+    setProviderBusy(null);
+    if (res.signingUrl) {
+      window.location.assign(res.signingUrl);
+    } else {
+      setProviderError(res.error ?? "Noe gikk galt");
+    }
   }
   if (done) {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginTop: 24, padding: 16, borderRadius: 8, background: "#f0fdf4", color: "#166534" }, children: [
@@ -179,6 +203,36 @@ function SignPanel({ theme, onRespond }) {
     ] });
   }
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginTop: 24, padding: 16, border: "1px solid #e5e7eb", borderRadius: 8 }, children: [
+    useFormal && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: 20 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "input",
+        {
+          "aria-label": theme.strings.signerEmail,
+          placeholder: theme.strings.signerEmail,
+          value: providerEmail,
+          onChange: (e) => setProviderEmail(e.target.value),
+          style: inp
+        }
+      ),
+      providerError && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { color: "#dc2626", fontSize: 14, margin: "4px 0 8px" }, children: providerError }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: available.map((provider) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "button",
+        {
+          disabled: providerBusy !== null,
+          onClick: () => initiateProvider(provider),
+          style: {
+            ...btn,
+            background: provider === "bankid" ? "#002776" : "#FF5B24",
+            color: "#fff",
+            opacity: providerBusy !== null ? 0.6 : 1
+          },
+          children: providerBusy === provider ? "..." : provider === "bankid" ? "Signer med BankID" : "Signer med Vipps"
+        },
+        provider
+      )) }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("hr", { style: { margin: "16px 0", borderColor: "#e5e7eb" } }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 13, color: "#6b7280", marginBottom: 8 }, children: "Eller signer med navn og e-post:" })
+    ] }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { "aria-label": theme.strings.signerName, placeholder: theme.strings.signerName, value: name, onChange: (e) => setName(e.target.value), style: inp }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { "aria-label": theme.strings.signerEmail, placeholder: theme.strings.signerEmail, value: email, onChange: (e) => setEmail(e.target.value), style: inp }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { "aria-label": theme.strings.signerTitle, placeholder: theme.strings.signerTitle, value: title, onChange: (e) => setTitle(e.target.value), style: inp }),
@@ -198,16 +252,22 @@ var btn = { padding: "8px 16px", borderRadius: 6, border: "none", cursor: "point
 
 // src/AgreementView.tsx
 var import_jsx_runtime4 = require("react/jsx-runtime");
-function AgreementView({ content, theme, onRespond }) {
+function AgreementView({
+  content,
+  theme,
+  onRespond,
+  available,
+  onSignInitiate
+}) {
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { fontFamily: theme.fontFamily }, children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("pre", { style: { whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 15, lineHeight: 1.6 }, children: content.bodyMarkdown ?? "" }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(SignPanel, { theme, onRespond })
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(SignPanel, { theme, onRespond, available, onSignInitiate })
   ] });
 }
 
 // src/ArtifactViewer.tsx
 var import_jsx_runtime5 = require("react/jsx-runtime");
-function ArtifactViewer({ payload, theme = defaultTheme, onRespond }) {
+function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSignInitiate }) {
   const surface = selectSurface(payload);
   const a = payload.artifact;
   const wrap = (children) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { maxWidth: 880, margin: "0 auto", padding: 24, fontFamily: theme.fontFamily, color: theme.brandColor }, children: [
@@ -217,20 +277,37 @@ function ArtifactViewer({ payload, theme = defaultTheme, onRespond }) {
   ] });
   if (surface === "unavailable") return wrap(/* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { style: { color: "#6b7280" }, children: theme.strings.unavailable }));
   if (surface === "expired") return wrap(/* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { style: { color: "#b45309" }, children: theme.strings.expired }) }));
-  if (surface === "signed") return wrap(/* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
-    "\u2713 ",
-    theme.strings.signed,
-    payload.signedAt ? ` \u2014 ${new Date(payload.signedAt).toLocaleString("nb-NO")}` : ""
-  ] }));
+  if (surface === "signed") return wrap(
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { padding: 16, background: "#f0fdf4", color: "#166534", borderRadius: 8 }, children: [
+        "\u2713 ",
+        theme.strings.signed,
+        payload.signedAt ? ` \u2014 ${new Date(payload.signedAt).toLocaleString("nb-NO")}` : ""
+      ] }),
+      payload.signedDocumentUrl && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("a", { href: payload.signedDocumentUrl, style: { color: theme.accentColor }, children: "Last ned signert avtale (PDF)" }) })
+    ] })
+  );
   if (surface === "presentation") {
     const slides = a.content?.slides ?? [];
     return wrap(/* @__PURE__ */ (0, import_jsx_runtime5.jsx)(SlideDeck, { slides, theme }));
   }
   if (surface === "offer") return wrap(/* @__PURE__ */ (0, import_jsx_runtime5.jsx)(OfferView, { content: a.content ?? {}, lines: a.lines ?? [], theme }));
-  return wrap(/* @__PURE__ */ (0, import_jsx_runtime5.jsx)(AgreementView, { content: a.content ?? {}, theme, onRespond }));
+  return wrap(
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+      AgreementView,
+      {
+        content: a.content ?? {},
+        theme,
+        onRespond,
+        available: payload.signing?.available ?? [],
+        onSignInitiate
+      }
+    )
+  );
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ArtifactViewer,
-  defaultTheme
+  defaultTheme,
+  signingButtons
 });

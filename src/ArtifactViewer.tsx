@@ -1,16 +1,17 @@
 import type { ReactNode } from 'react'
 import type { Theme } from './theme'
 import { defaultTheme } from './theme'
-import type { PublicPayload, RespondInput, RespondResult } from './types'
+import type { PublicPayload, RespondInput, RespondResult, SignInitiateResult } from './types'
 import { selectSurface } from './logic'
 import { SlideDeck } from './SlideDeck'
 import { OfferView } from './OfferView'
 import { AgreementView } from './AgreementView'
 
-export function ArtifactViewer({ payload, theme = defaultTheme, onRespond }: {
+export function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSignInitiate }: {
   payload: PublicPayload
   theme?: Theme
   onRespond: (input: RespondInput) => Promise<RespondResult>
+  onSignInitiate?: (provider: 'bankid' | 'vipps', signerEmail: string) => Promise<SignInitiateResult>
 }) {
   const surface = selectSurface(payload)
   const a = payload.artifact
@@ -24,11 +25,32 @@ export function ArtifactViewer({ payload, theme = defaultTheme, onRespond }: {
 
   if (surface === 'unavailable') return wrap(<p style={{ color: '#6b7280' }}>{theme.strings.unavailable}</p>)
   if (surface === 'expired') return wrap(<div><p style={{ color: '#b45309' }}>{theme.strings.expired}</p></div>)
-  if (surface === 'signed') return wrap(<div style={{ padding: 16, background: '#f0fdf4', color: '#166534', borderRadius: 8 }}>✓ {theme.strings.signed}{payload.signedAt ? ` — ${new Date(payload.signedAt).toLocaleString('nb-NO')}` : ''}</div>)
+  if (surface === 'signed') return wrap(
+    <div>
+      <div style={{ padding: 16, background: '#f0fdf4', color: '#166534', borderRadius: 8 }}>
+        ✓ {theme.strings.signed}{payload.signedAt ? ` — ${new Date(payload.signedAt).toLocaleString('nb-NO')}` : ''}
+      </div>
+      {payload.signedDocumentUrl && (
+        <p style={{ marginTop: 12 }}>
+          <a href={payload.signedDocumentUrl} style={{ color: theme.accentColor }}>
+            Last ned signert avtale (PDF)
+          </a>
+        </p>
+      )}
+    </div>
+  )
   if (surface === 'presentation') {
     const slides = ((a.content as { slides?: unknown[] })?.slides ?? []) as never[]
     return wrap(<SlideDeck slides={slides} theme={theme} />)
   }
   if (surface === 'offer') return wrap(<OfferView content={(a.content ?? {}) as never} lines={a.lines ?? []} theme={theme} />)
-  return wrap(<AgreementView content={(a.content ?? {}) as never} theme={theme} onRespond={onRespond} />)
+  return wrap(
+    <AgreementView
+      content={(a.content ?? {}) as never}
+      theme={theme}
+      onRespond={onRespond}
+      available={payload.signing?.available ?? []}
+      onSignInitiate={onSignInitiate}
+    />
+  )
 }

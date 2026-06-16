@@ -24,7 +24,11 @@ export interface PublicPayload {
   signed?: boolean
   signedAt?: string
   artifact: PublicArtifact
+  signing?: { available: ('bankid' | 'vipps')[] }
+  signedDocumentUrl?: string
 }
+
+export interface SignInitiateResult { signingUrl?: string; error?: string }
 
 export interface RespondInput {
   outcome: 'accepted' | 'declined'

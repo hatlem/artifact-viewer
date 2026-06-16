@@ -1,6 +1,6 @@
 {
   "name": "@getplatform/artifact-viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Themeable public renderer for GetPlatform artifacts (presentation/offer/agreement)",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

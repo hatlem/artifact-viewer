@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { formatOre, clampSlide, selectSurface, validateSign, signingButtons, paymentButtons } from './logic'
 
-test('formatOre renders øre as NOK kroner', () => {
-  assert.equal(formatOre(1250000), '12 500')
+test('formatOre renders øre as kroner', () => {
+  assert.equal(formatOre(1250000, 'nb-NO'), '12 500')
   assert.equal(formatOre(0), '0')
 })
 

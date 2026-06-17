@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Theme } from './theme'
+import type { Strings } from './strings'
 import { clampSlide } from './logic'
 
 interface Block { type: string; text?: string; items?: string[]; url?: string }
 interface Slide { layout: string; blocks: Block[] }
 
-export function SlideDeck({ slides, theme }: { slides: Slide[]; theme: Theme }) {
+export function SlideDeck({ slides, theme, strings }: { slides: Slide[]; theme: Theme; strings: Strings }) {
   const [i, setI] = useState(0)
   const go = (n: number) => setI((cur) => clampSlide(cur + n, slides.length))
 
@@ -33,9 +34,9 @@ export function SlideDeck({ slides, theme }: { slides: Slide[]; theme: Theme }) 
         })}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0' }}>
-        <button onClick={() => go(-1)} disabled={i === 0} aria-label="Forrige" style={navBtn}>←</button>
+        <button onClick={() => go(-1)} disabled={i === 0} aria-label={strings.previousSlide} style={navBtn}>←</button>
         <span style={{ fontSize: 13, color: '#6b7280' }}>{i + 1} / {slides.length}</span>
-        <button onClick={() => go(1)} disabled={i >= slides.length - 1} aria-label="Neste" style={navBtn}>→</button>
+        <button onClick={() => go(1)} disabled={i >= slides.length - 1} aria-label={strings.nextSlide} style={navBtn}>→</button>
       </div>
       <div style={{ height: 3, background: '#e5e7eb', borderRadius: 2 }}>
         <div style={{ height: '100%', width: `${((i + 1) / slides.length) * 100}%`, background: theme.accentColor, borderRadius: 2, transition: 'width 0.3s' }} />

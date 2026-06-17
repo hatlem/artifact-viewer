@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Theme } from './theme'
+import type { Strings } from './strings'
 import type { RespondInput, RespondResult, PayInitiateResult } from './types'
 
 export interface AcceptPanelProps {
   theme: Theme
+  strings: Strings
   available: ('stripe' | 'vipps' | 'fiken')[]
   onPayInitiate?: (method: 'stripe' | 'vipps' | 'fiken', email: string) => Promise<PayInitiateResult>
   onRespond: (input: RespondInput) => Promise<RespondResult>
@@ -12,19 +14,18 @@ export interface AcceptPanelProps {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const METHOD_LABELS: Record<'stripe' | 'vipps' | 'fiken', string> = {
-  stripe: 'Betal med kort',
-  vipps: 'Betal med Vipps',
-  fiken: 'Faktura (EHF)',
-}
-
 const METHOD_COLORS: Record<'stripe' | 'vipps' | 'fiken', string> = {
   stripe: '#635bff',
   vipps: '#FF5B24',
   fiken: '#1a5276',
 }
 
-export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: AcceptPanelProps) {
+export function AcceptPanel({ theme, strings, available, onPayInitiate, onRespond }: AcceptPanelProps) {
+  const methodLabels: Record<'stripe' | 'vipps' | 'fiken', string> = {
+    stripe: strings.payWithCard,
+    vipps: strings.payWithVipps,
+    fiken: strings.payByInvoice,
+  }
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState('')
   const [busy, setBusy] = useState<'stripe' | 'vipps' | 'fiken' | 'accept' | null>(null)
@@ -36,7 +37,7 @@ export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: Acce
   function validateEmail(): boolean {
     const trimmed = email.trim()
     if (!trimmed || !EMAIL.test(trimmed)) {
-      setEmailError('Oppgi en gyldig e-postadresse for å fortsette')
+      setEmailError(strings.invalidEmail)
       return false
     }
     setEmailError('')
@@ -74,14 +75,14 @@ export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: Acce
     if (res.ok) {
       setDone('accepted')
     } else {
-      setError(res.error ?? 'Noe gikk galt')
+      setError(res.error ?? strings.errorGeneric)
     }
   }
 
   if (done === 'paid' || done === 'accepted') {
     return (
       <div style={{ marginTop: 24, padding: 16, borderRadius: 8, background: '#f0fdf4', color: '#166534' }}>
-        ✓ Takk!
+        ✓ {strings.thanks}
       </div>
     )
   }
@@ -89,7 +90,7 @@ export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: Acce
   if (done === 'invoiced') {
     return (
       <div style={{ marginTop: 24, padding: 16, borderRadius: 8, background: '#eff6ff', color: '#1e40af' }}>
-        ✓ Faktura sendt — vi tar kontakt med betalingsinformasjon.
+        ✓ {strings.invoiceSentMessage}
       </div>
     )
   }
@@ -97,8 +98,8 @@ export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: Acce
   return (
     <div style={{ marginTop: 24, padding: 16, border: '1px solid #e5e7eb', borderRadius: 8 }}>
       <input
-        aria-label="E-postadresse"
-        placeholder="Din e-postadresse"
+        aria-label={strings.emailAddressLabel}
+        placeholder={strings.emailAddressPlaceholder}
         type="email"
         value={email}
         onChange={(e) => { setEmail(e.target.value); setEmailError('') }}
@@ -121,18 +122,18 @@ export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: Acce
                   opacity: busy !== null ? 0.6 : 1,
                 }}
               >
-                {busy === method ? '...' : METHOD_LABELS[method]}
+                {busy === method ? '...' : methodLabels[method]}
               </button>
             ))}
           </div>
           <hr style={{ margin: '16px 0', borderColor: '#e5e7eb' }} />
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>Eller aksepter uten betaling nå:</p>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>{strings.orAcceptWithoutPayment}</p>
           <button
             disabled={busy !== null}
             onClick={acceptWithoutPayment}
             style={{ ...btn, background: theme.accentColor, color: '#fff', opacity: busy !== null ? 0.5 : 1 }}
           >
-            {busy === 'accept' ? '...' : 'Aksepter tilbud'}
+            {busy === 'accept' ? '...' : strings.acceptOffer}
           </button>
         </>
       ) : (
@@ -141,7 +142,7 @@ export function AcceptPanel({ theme, available, onPayInitiate, onRespond }: Acce
           onClick={acceptWithoutPayment}
           style={{ ...btn, background: theme.accentColor, color: '#fff', marginTop: 8, opacity: busy !== null ? 0.5 : 1 }}
         >
-          {busy === 'accept' ? '...' : 'Aksepter tilbud'}
+          {busy === 'accept' ? '...' : strings.acceptOffer}
         </button>
       )}
 

@@ -1,9 +1,9 @@
 import type { PublicPayload } from './types'
 
-/** øre → grouped NOK kroner string (no decimals; nb-NO grouping). */
-export function formatOre(ore: number): string {
+/** øre → grouped kroner string (no decimals; locale-driven grouping, defaults to en-US). */
+export function formatOre(ore: number, locale: string = 'en-US'): string {
   return Math.round(ore / 100)
-    .toLocaleString('nb-NO')
+    .toLocaleString(locale)
     .replace(/ /g, ' ')  // non-breaking space → regular space
     .replace(/ /g, ' ')  // narrow no-break space → regular space
 }

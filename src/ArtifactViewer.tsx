@@ -3,6 +3,7 @@ import type { Theme } from './theme'
 import { defaultTheme } from './theme'
 import type { PublicPayload, RespondInput, RespondResult, SignInitiateResult, PayInitiateResult } from './types'
 import { selectSurface } from './logic'
+import { resolveStrings, intlLocale } from './strings'
 import { SlideDeck } from './SlideDeck'
 import { OfferView } from './OfferView'
 import { AgreementView } from './AgreementView'
@@ -16,6 +17,8 @@ export function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSig
 }) {
   const surface = selectSurface(payload)
   const a = payload.artifact
+  const strings = resolveStrings(a.locale, theme.strings)
+  const loc = intlLocale(a.locale)
   const wrap = (children: ReactNode) => (
     <div style={{ maxWidth: 880, margin: '0 auto', padding: 24, fontFamily: theme.fontFamily, color: theme.brandColor }}>
       {theme.logoUrl && <img src={theme.logoUrl} alt="" style={{ height: 28, marginBottom: 24 }} />}
@@ -24,17 +27,17 @@ export function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSig
     </div>
   )
 
-  if (surface === 'unavailable') return wrap(<p style={{ color: '#6b7280' }}>{theme.strings.unavailable}</p>)
-  if (surface === 'expired') return wrap(<div><p style={{ color: '#b45309' }}>{theme.strings.expired}</p></div>)
+  if (surface === 'unavailable') return wrap(<p style={{ color: '#6b7280' }}>{strings.unavailable}</p>)
+  if (surface === 'expired') return wrap(<div><p style={{ color: '#b45309' }}>{strings.expired}</p></div>)
   if (surface === 'signed') return wrap(
     <div>
       <div style={{ padding: 16, background: '#f0fdf4', color: '#166534', borderRadius: 8 }}>
-        ✓ {theme.strings.signed}{payload.signedAt ? ` — ${new Date(payload.signedAt).toLocaleString('nb-NO')}` : ''}
+        ✓ {strings.signed}{payload.signedAt ? ` — ${new Date(payload.signedAt).toLocaleString(loc)}` : ''}
       </div>
       {payload.signedDocumentUrl && (
         <p style={{ marginTop: 12 }}>
           <a href={payload.signedDocumentUrl} style={{ color: theme.accentColor }}>
-            Last ned signert avtale (PDF)
+            {strings.downloadSignedAgreement}
           </a>
         </p>
       )}
@@ -42,14 +45,14 @@ export function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSig
   )
   if (surface === 'presentation') {
     const slides = ((a.content as { slides?: unknown[] })?.slides ?? []) as never[]
-    return wrap(<SlideDeck slides={slides} theme={theme} />)
+    return wrap(<SlideDeck slides={slides} theme={theme} strings={strings} />)
   }
   if (surface === 'offer') {
     if (payload.paidAt) {
       return wrap(
         <div style={{ padding: 16, background: '#f0fdf4', color: '#166534', borderRadius: 8 }}>
-          ✓ Betalt{payload.paidAt ? ` — ${new Date(payload.paidAt).toLocaleString('nb-NO')}` : ''}
-          {payload.paymentRef && <span style={{ marginLeft: 8, fontSize: 13, color: '#166534' }}>Ref: {payload.paymentRef}</span>}
+          ✓ {strings.paid}{payload.paidAt ? ` — ${new Date(payload.paidAt).toLocaleString(loc)}` : ''}
+          {payload.paymentRef && <span style={{ marginLeft: 8, fontSize: 13, color: '#166534' }}>{strings.refLabel} {payload.paymentRef}</span>}
         </div>
       )
     }
@@ -58,6 +61,8 @@ export function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSig
         content={(a.content ?? {}) as never}
         lines={a.lines ?? []}
         theme={theme}
+        strings={strings}
+        loc={loc}
         available={payload.payment?.available ?? []}
         onPayInitiate={onPayInitiate}
         onRespond={onRespond}
@@ -68,6 +73,8 @@ export function ArtifactViewer({ payload, theme = defaultTheme, onRespond, onSig
     <AgreementView
       content={(a.content ?? {}) as never}
       theme={theme}
+      strings={strings}
+      loc={loc}
       onRespond={onRespond}
       available={payload.signing?.available ?? []}
       onSignInitiate={onSignInitiate}

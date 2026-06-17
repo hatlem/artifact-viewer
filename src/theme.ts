@@ -1,34 +1,20 @@
+import type { Strings } from './strings'
+
 export interface Theme {
   brandColor: string
   accentColor: string
   logoUrl?: string
   fontFamily: string
-  strings: {
-    accept: string
-    decline: string
-    consent: string
-    signerName: string
-    signerEmail: string
-    signerTitle: string
-    signed: string
-    unavailable: string
-    expired: string
-  }
+  /**
+   * Optional per-key overrides on top of the locale-resolved string pack.
+   * Leave undefined to use the package's built-in English/Norwegian packs
+   * (selected automatically from `artifact.locale`).
+   */
+  strings?: Partial<Strings>
 }
 
 export const defaultTheme: Theme = {
   brandColor: '#0a0a0a',
   accentColor: '#2563eb',
   fontFamily: 'system-ui, -apple-system, sans-serif',
-  strings: {
-    accept: 'Aksepter',
-    decline: 'Avslå',
-    consent: 'Jeg aksepterer vilkårene',
-    signerName: 'Fullt navn',
-    signerEmail: 'E-post',
-    signerTitle: 'Tittel (valgfritt)',
-    signed: 'Signert',
-    unavailable: 'Dette dokumentet er ikke tilgjengelig.',
-    expired: 'Dette dokumentet er utløpt.',
-  },
 }
